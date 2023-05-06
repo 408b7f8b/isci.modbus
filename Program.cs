@@ -182,7 +182,7 @@ namespace isci.modbus
             structure.DatenmodellEinhängen(dm);
             structure.Start();
 
-            var Zustand = new dtInt32(0, "Zustand", konfiguration.OrdnerDatenstruktur + "/Zustand");
+            var Zustand = new dtZustand(konfiguration.OrdnerDatenstruktur);
             Zustand.Start();
 
             while(true)
@@ -190,36 +190,35 @@ namespace isci.modbus
                 Zustand.Lesen();
 
                 var erfüllteTransitionen = konfiguration.Ausführungstransitionen.Where(a => a.Eingangszustand == (System.Int32)Zustand.value);
-                if (erfüllteTransitionen.Count<Ausführungstransition>() > 0)
-                {
-                    structure.Lesen();
-                    foreach (var feld in Felder)
-                    {
-                        var eintrag = feld.dateneintrag;
-                        if (eintrag.aenderung)
-                        {
-                            eintrag.aenderung = false;
-                            n.Adresse_Speicher_Zielsystem = feld.Adresse;
-                            if (eintrag.type == Datentypen.UInt16) {
-                                n.Woerter[0] = (System.UInt16)eintrag.value;
-                            } else if (eintrag.type == Datentypen.Int16) {
-                                if ((System.Int16)eintrag.value >= 0) n.Woerter[0] = (System.UInt16)eintrag.value; else
-                                eintrag.value = (System.UInt16)(0xFFFF - (System.Int16)eintrag.value + 1);
-                            } else {
-                                continue;
-                            }
+                if (erfüllteTransitionen.Count<Ausführungstransition>() <= 0) continue;;
 
-                            using (null)
-                            {
-                                var arr = n.KetteBauen().ToArray();
-                                System.IO.File.WriteAllBytes(konfiguration.Port, arr);
-                            }
+                structure.Lesen();
+                foreach (var feld in Felder)
+                {
+                    var eintrag = feld.dateneintrag;
+                    if (eintrag.aenderung)
+                    {
+                        eintrag.aenderung = false;
+                        n.Adresse_Speicher_Zielsystem = feld.Adresse;
+                        if (eintrag.type == Datentypen.UInt16) {
+                            n.Woerter[0] = (System.UInt16)eintrag.value;
+                        } else if (eintrag.type == Datentypen.Int16) {
+                            if ((System.Int16)eintrag.value >= 0) n.Woerter[0] = (System.UInt16)eintrag.value; else
+                            eintrag.value = (System.UInt16)(0xFFFF - (System.Int16)eintrag.value + 1);
+                        } else {
+                            continue;
+                        }
+
+                        using (null)
+                        {
+                            var arr = n.KetteBauen().ToArray();
+                            System.IO.File.WriteAllBytes(konfiguration.Port, arr);
                         }
                     }
-
-                    Zustand.value = erfüllteTransitionen.First<Ausführungstransition>().Ausgangszustand;
-                    Zustand.Schreiben();
                 }
+
+                Zustand.value = erfüllteTransitionen.First<Ausführungstransition>().Ausgangszustand;
+                Zustand.Schreiben();
             }
         }
     }
